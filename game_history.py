@@ -3,6 +3,96 @@ from constants import *
 
 class GameHistory:
 
+	'''
+	Instances of GameHistory allow you to seamlessly browse through the game step by step
+	without having the user having to compute the state of the game. The module introduces
+	several optimizations to limit RAM and CPU cycles, but allows the user to access each
+	sequencial state of the game similar to a list.
+
+	usage:
+
+	width = 19
+	height = 19
+
+	game_history_instance = GameHistory(width, height)
+
+	# ...
+
+	# putting stones on board
+	point = (18, 18) # corner of board
+	game_history_instance.put(  (point, BLACK)  )
+	game_history_instance.put(  ((4, 5), WHITE),  ((4, 3), BLACK)  ) # takes unlimited arguments
+
+
+	# clearing spaces
+	point = (4, 5)
+
+	# clears the last two stones put down on board
+	game_history_instance.take(point, (4, 3)) # also takes unlmited arguments
+
+
+	# ends recording of current turn, adds new frame
+	game_history_instance.close()
+
+	# do same types of steps as above for next move ...
+
+
+	# to query:
+
+	# gets game state as true list 5 states (4 moves) in to the game
+	board_list_2d = game_history_instance.get_state(5)
+
+	# returns a virtual list representation of same game state
+	game_frame = game_history_instance[5]
+
+	'''
+
+	# acts as a proxy between you and a specific game state
+	class _GameFrame:
+
+		'''
+		Instances of this class act as proxies between users of the game states
+		and the actual game state, this virtualization, allows for deffered processing
+		and could significantly improve performance. This should only be used internally
+		By the GameHistory instances.
+
+		usage:
+
+		# gets _GameFrame object for the board's 5th state (state after 4 moves)
+		board_state_instance = game_history_instance.get_state(5)
+
+		# indexes go up to 18 on 19x19 board
+		x = 3
+		y = 18
+
+		point = x, y
+		point_contents = board_state_instance[point]
+
+		#	or
+
+		point_contents = board_state_instance[x, y]
+		'''
+		def __init__(self, game_history, index):
+			this._game_history = game_history
+			this._index = index
+			this._rendered = False
+			this._state = None
+
+		# does not use matrix notation ( instance[y, x] with indexes starting at 1)
+		# instead uses instance[x, y] with indexes starting at 0,
+		def __getitem__(self, item):
+			if type(item) == tuple:
+				i, j = item
+
+				if not this._rendered:
+					this._state = this._game_history.get_state(this._index)
+					this._rendered = True
+
+				return this._state[j][i]
+			else:
+				raise IndexError("Invalid index for board position: %s" % item)
+
+
 	def __init__(self, width, height):
 		# list tracking each change in the board contents
 		self._changes = []
@@ -12,14 +102,21 @@ class GameHistory:
 		self._height = height
 
 		# must call after setting _width, _height
+		self._first = self._empty_board()
 		self._last = self._empty_board()
 		self._current = self._empty_board()
 
 	def __getitem__(self, index):
 		if type(index) == int:
+			if index < 0:
+				index += len(self)
+
 			return GameFrame(self, index)
 		else:
 			raise IndexError("Invalid move number: %s" % index)
+
+	def __len__(self):
+		return len(self._changes) + 1
 
 	def _empty_board(self):
 		return [x[:] for x in [[EMPTY] * self._width] * self._height]
@@ -71,7 +168,7 @@ class GameHistory:
 		return future
 
 	# returns difffernce between the two boards
-	def _diff(self, in_board, out_board):
+	def _difference(self, in_board, out_board):
 		changes = {}
 		for i in range(0, self._width):
 			for j in range(0, self._height):
@@ -88,17 +185,26 @@ class GameHistory:
 
 		return changes
 
-	# get state at index starting from left
-	def _get_state_left(self, index):
-		board = self._empty_board()
-		for i in range(0, index):
-			self._forward(board, self._changes[i], copy=False)
 
+	# calculates board state at out index based on input board state and its index
+	def _compute_game_state(self, current_board, in_index, out_index):
+		length = len(self._changes)
+		board = copy_board(current_board)
 
+		if in_index < out_index:
+			for i in range(in_index, out_index):
+				changes = self._changes[i]
+				this._forward(board, changes)
+		elif in_index > out_index:
+			for i in range(in_index - 1, out_index - 1, -1):
+				changes = self._changes[i]
+				this._backward(board, changes)
+
+		return board
 
 
 	def close(self):
-		diff = self._diff(self._last, self._current)
+		diff = self._difference(self._last, self._current)
 
 		self._last = self._current
 		self._current = copy_board(self._last)
@@ -107,11 +213,13 @@ class GameHistory:
 
 	# takes parameters of tuples (point, color)
 	# where point is a tuple (x, y)
+	# and adds them to current game state
 	def put(self, *stones):
 		for point, color in stones:
 			x, y = point
 			self._current[x][y] = color
 
+	# sets given points to empty
 	def take(self, *points):
 		for x, y in points:
 			self._current[x][y] = EMPTY
@@ -119,31 +227,17 @@ class GameHistory:
 	# chooses optimal calculation function based on relative distance
 	# feature not yet implemented
 	def get_state(self, index):
-		return self._get_state_left(index)
-		
+		length = len(self)
 
-
-
-# acts as a proxy between you and a specific game state
-class GameFrame:
-	def __init__(self, game_history, index):
-		this._game_history = game_history
-		this._index = index
-		this._rendered = False
-		this._state = None
-
-	def __getitem__(self, item):
-		if type(item) == tuple:
-			x, y = item
-
-			if not this._rendered:
-				this._state = this._game_history.get_state(this._index)
-				this._rendered = True
-
-			return this._state[x][y]
+		# if index is closer to left side
+		if index < length - index:
+			in_board = self._first
+			out_board = self._compute_game_state(in_board, 0, index)
 		else:
-			raise IndexError("Invalid index for board position: %s" % item)
-
+			in_board = self._last
+			out_board = self._compute_game_state(in_board, length, index)
+		
+		return out_board
 
 
 
