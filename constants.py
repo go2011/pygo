@@ -6,6 +6,10 @@ WHITE = 1
 EMPTY = 2
 OFFBOARD = 3
 
+# base to use when storing info digitally
+# must be greater than all the constants
+BASE = 10
+
 def alternate_color():
 	color = BLACK
 	while True:
