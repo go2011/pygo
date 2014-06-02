@@ -6,6 +6,12 @@ WHITE = 1
 EMPTY = 2
 OFFBOARD = 3
 
+# constants to reffer to standard indexes in 3 dimensional grid (currently working only on 2d)
+# always use in square [] to standardize and increase readability
+X = WIDTH = 0
+Y = HEIGHT = 1
+#Z = DEPTH = 2
+
 # base to use when storing info digitally
 # must be greater than all the constants
 BASE = 10

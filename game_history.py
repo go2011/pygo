@@ -1,13 +1,70 @@
 from copy import copy as copy_board
 from constants import *
 
+
+# acts as a proxy between you and a specific game state
+class GameFrame:
+
+	'''
+	Instances of this class act as proxies between users of the game states
+	and the actual game state, this virtualization, allows for deffered processing
+	and could significantly improve performance. This should only be used internally
+	By the GameHistory instances.
+
+	usage:
+
+	# gets _GameFrame object for the board's 5th state (state after 4 moves)
+	board_state_instance = game_history_instance.get_state(5)
+
+	# indexes go up to 18 on 19x19 board
+	x = 3
+	y = 18
+
+	point = x, y
+	point_contents = board_state_instance[point]
+
+	#	or
+
+	point_contents = board_state_instance[x, y]
+	'''
+
+	def __init__(self, game_history, index):
+		self._game_history = game_history
+		self._index = index
+		self._rendered = False
+		self._state = None
+
+	# gives tuple of the width, height, etc (if applicable)
+	@property
+	def dimensions(self):
+		return self._game_history.dimensions
+
+	# does not use matrix notation ( instance[y, x] with indexes starting at 1)
+	# instead uses instance[x, y] with indexes starting at 0,
+	def __getitem__(self, item):
+		if type(item) == tuple:
+			x, y = item
+
+			if not self._rendered:
+				self._state = self._game_history.get_state(self._index)
+				self._rendered = True
+
+			return self._state[x][y]
+		else:
+			raise IndexError("Invalid index for board position: %s" % item)
+
+
+
 class GameHistory:
 
 	'''
 	Instances of GameHistory allow you to seamlessly browse through the game step by step
 	without having the user having to compute the state of the game. The module introduces
 	several optimizations to limit RAM and CPU cycles, but allows the user to access each
-	sequencial state of the game similar to a list.
+	sequencial state of the game similar to a list. Ultimately this class should be flexible
+	enough to allow for any variation of the game which can be boiled down to 2d cartesian
+	coordinates. A toroidal go board (no edges) can easily be achieved by changing the default
+	GameFrame object, and overriding __getitem__ in the custom game frame class.
 
 	usage:
 
@@ -45,55 +102,17 @@ class GameHistory:
 	# returns a virtual list representation of same game state
 	game_frame = game_history_instance[5]
 
+
+
 	'''
 
-	# acts as a proxy between you and a specific game state
-	class _GameFrame:
+	default_game_frame_class = GameFrame
 
-		'''
-		Instances of this class act as proxies between users of the game states
-		and the actual game state, this virtualization, allows for deffered processing
-		and could significantly improve performance. This should only be used internally
-		By the GameHistory instances.
-
-		usage:
-
-		# gets _GameFrame object for the board's 5th state (state after 4 moves)
-		board_state_instance = game_history_instance.get_state(5)
-
-		# indexes go up to 18 on 19x19 board
-		x = 3
-		y = 18
-
-		point = x, y
-		point_contents = board_state_instance[point]
-
-		#	or
-
-		point_contents = board_state_instance[x, y]
-		'''
-		def __init__(self, game_history, index):
-			this._game_history = game_history
-			this._index = index
-			this._rendered = False
-			this._state = None
-
-		# does not use matrix notation ( instance[y, x] with indexes starting at 1)
-		# instead uses instance[x, y] with indexes starting at 0,
-		def __getitem__(self, item):
-			if type(item) == tuple:
-				i, j = item
-
-				if not this._rendered:
-					this._state = this._game_history.get_state(this._index)
-					this._rendered = True
-
-				return this._state[j][i]
-			else:
-				raise IndexError("Invalid index for board position: %s" % item)
+	def __init__(self, width, height, game_frame_class=default_game_frame_class):
+		# set class to instantiate all game frame objects from
+		self._game_frame_class = game_frame_class
 
 
-	def __init__(self, width, height):
 		# list tracking each change in the board contents
 		self._changes = []
 
@@ -111,12 +130,17 @@ class GameHistory:
 			if index < 0:
 				index += len(self)
 
-			return GameFrame(self, index)
+			return self._game_frame_class(self, index)
 		else:
 			raise IndexError("Invalid move number: %s" % index)
 
 	def __len__(self):
+		# game will always a number of states 1 greater than the number of changes
 		return len(self._changes) + 1
+
+	@property
+	def dimensions(self):
+		return self._width, self._height
 
 	def _empty_board(self):
 		return [x[:] for x in [[EMPTY] * self._width] * self._height]
@@ -173,7 +197,7 @@ class GameHistory:
 		for i in range(0, self._width):
 			for j in range(0, self._height):
 				
-				original, new = inb[i][j], outb[i][j]
+				original, new = in_board[i][j], out_board[i][j]
 				if original == new:
 					continue
 				else:
@@ -194,11 +218,11 @@ class GameHistory:
 		if in_index < out_index:
 			for i in range(in_index, out_index):
 				changes = self._changes[i]
-				this._forward(board, changes)
+				self._forward(board, changes)
 		elif in_index > out_index:
 			for i in range(in_index - 1, out_index - 1, -1):
 				changes = self._changes[i]
-				this._backward(board, changes)
+				self._backward(board, changes)
 
 		return board
 

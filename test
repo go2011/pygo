@@ -1,0 +1,104 @@
+#!/usr/bin/python
+
+import random
+
+from constants import *
+from game_history import *
+
+width=19
+height=19
+
+def random_points(number, replacement=False, dimensions=(width,height)):
+	width, height = dimensions
+	horizontal = range(0, width)
+	vertical = range(0, height)
+	loop = 0
+
+	if replacement:
+		while True:
+			x = random.choice(horizontal)
+			y = random.choice(vertical)
+
+			if loop < number:
+				loop += 1
+			else:
+				break
+
+			yield x, y
+	else:
+		taken = set()
+		for i in range(0, min(width * height // 2, number)):
+			while True:
+				x = random.choice(horizontal)
+				y = random.choice(vertical)
+
+				point = x, y
+				if not point in taken:
+					break
+
+			taken.add(point)
+			yield point
+
+def random_color():
+	return random.choice([BLACK, WHITE])
+
+def random_plays(number, replacement=False):
+	for point in random_points(number, replacement=replacement):
+		color = random_color()
+		yield point, color
+
+
+
+
+print "initialize"
+history = GameHistory(width, height)
+
+
+for i in range(0, 4):
+	print 'move: ', i
+
+	plays = list(random_plays(3))
+	history.put(*plays)
+	print 'plays -> ', plays
+
+
+
+
+	points = list(random_points(8))
+	history.take(*points)
+	print 'takes -> ', points
+
+
+	history.close()
+
+
+print "access frames"
+joiner = " "
+couple = (history[0], history[1])
+for state in couple:
+	print
+	print
+	width, height = state.dimensions
+	for y in range(0, height):
+		strout = []
+		for x in range(0, width):
+			content = state[x, y]
+			strout.append(str(content))
+
+		print joiner.join(strout)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
