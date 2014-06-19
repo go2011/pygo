@@ -213,11 +213,10 @@ class GameHistory:
 		length = len(self)
 		for i in range(0, length):
 			if i % value == 0:
-				self._cache[i] = board
+				self._store(i, board)
 			else:
-				if i in self._cache:
-					del self._cache[i]
-
+				self._uncache(i)
+				
 			if i == length - 1:
 				break
 
