@@ -54,7 +54,7 @@ print "initialize"
 history = GameHistory(width, height)
 
 
-for i in range(0, 4):
+for i in range(0, 12):
 	print 'move: ', i
 
 	plays = list(random_plays(3))
@@ -71,25 +71,7 @@ for i in range(0, 4):
 
 	history.close()
 
-
-print "access frames"
-joiner = " "
-couple = (history[0], history[1])
-for state in couple:
-	print
-	print
-	width, height = state.dimensions
-	for y in range(0, height):
-		strout = []
-		for x in range(0, width):
-			content = state[x, y]
-			strout.append(str(content))
-
-		print joiner.join(strout)
-
-
-
-
+	print history[-1]
 
 
 

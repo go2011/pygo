@@ -1,9 +1,9 @@
 # here I define stuff that will come in handy throughout the project
 
 # best to use names rather than values as they may change
-BLACK = 0
-WHITE = 1
-EMPTY = 2
+EMPTY = 0
+BLACK = 1
+WHITE = 2
 OFFBOARD = 3
 
 # constants to reffer to standard indexes in 3 dimensional grid (currently working only on 2d)
@@ -11,6 +11,9 @@ OFFBOARD = 3
 X = WIDTH = 0
 Y = HEIGHT = 1
 #Z = DEPTH = 2
+
+COLUMN = 0
+ROW = 1
 
 # base to use when storing info digitally
 # must be greater than all the constants
