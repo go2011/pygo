@@ -45,8 +45,7 @@ def random_color():
 def random_plays(number, replacement=False):
 	for point in random_points(number, replacement=replacement):
 		color = random_color()
-		yield point, color
-
+		yield color, point
 
 
 
