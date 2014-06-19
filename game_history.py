@@ -357,7 +357,7 @@ class GameHistory:
 	# where point is a tuple (x, y)
 	# and adds them to current game state
 	def put(self, *stones):
-		for point, color in stones:
+		for color, point in stones:
 			assert self.valid_point(point)
 			assert self.valid_color(color)
 
